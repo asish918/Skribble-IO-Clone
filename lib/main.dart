@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skribble_clone/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,11 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text("Skribble Clone"),
-        ),
-      ),
+      home: HomeScreen()
     );
   }
 }
