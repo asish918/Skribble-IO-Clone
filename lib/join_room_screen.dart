@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter/material.dart';
+import 'package:skribble_clone/paint_screen.dart';
 import 'package:skribble_clone/widgets/custom_text_field.dart';
 
 class JoinRoomScreen extends StatefulWidget {
@@ -13,6 +14,22 @@ class JoinRoomScreen extends StatefulWidget {
 class _JoinRoomScreenState extends State<JoinRoomScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _roomNameController = TextEditingController();
+
+  void joinRoom() {
+    if (_nameController.text.isNotEmpty &&
+        _roomNameController.text.isNotEmpty) {
+      Map<String, String> data = {
+        "nickname": _nameController.text,
+        "name": _roomNameController.text,
+      };
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PaintScreen(data: data, screenFrom: 'joinRoom'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +69,9 @@ class _JoinRoomScreenState extends State<JoinRoomScreen> {
               textStyle: MaterialStateProperty.all(
                 TextStyle(color: Colors.white),
               )),
-          onPressed: () {},
+          onPressed: () => joinRoom(),
           child: Text(
-            'Create',
+            'Join',
             style: TextStyle(color: Colors.white, fontSize: 16),
           ),
         ),
