@@ -87,6 +87,21 @@ io.on('connection', (socket) => {
     _socket.on('paint', ({details, roomName}) => {
         io.to(roomName).emit('points', {details: details});
     })
+
+
+    socket.on('color-change', ({color, roomName}) => {
+        io.to(roomName).emit('color-change', color);
+    })
+
+    
+    socket.on('stroke-width', ({value, roomName}) => {
+        io.to(roomName).emit('stroke-width', value);
+    })
+
+
+    socket.on('clean-screen', (roomName) => {
+        io.to(roomName).emit('clean-room', '');
+    })
 })
 
 server.listen(port, "0.0.0.0", () => {

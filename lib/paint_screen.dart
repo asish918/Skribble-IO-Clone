@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:skribble_clone/models/my_custom_painter.dart';
 import 'package:skribble_clone/models/touch_points.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
@@ -54,16 +55,38 @@ class _PaintScreenState extends State<PaintScreen> {
       _socket.on('points', (point) {
         if (point['details'] != null) {
           setState(() {
-            points.add(TouchPoints(
-                points: Offset((point['details']['dx']).toDouble(),
-                    (point['details']['dy']).toDouble()),
-                paint: Paint()..strokeCap = strokeType
-                ..isAntiAlias = true
-                ..color = selectedColor.withOpacity(opacity)
-                ..strokeWidth = strokeWidth
-                ),);
+            points.add(
+              TouchPoints(
+                  points: Offset((point['details']['dx']).toDouble(),
+                      (point['details']['dy']).toDouble()),
+                  paint: Paint()
+                    ..strokeCap = strokeType
+                    ..isAntiAlias = true
+                    ..color = selectedColor.withOpacity(opacity)
+                    ..strokeWidth = strokeWidth),
+            );
           });
         }
+      });
+
+      _socket.on('color-change', (colorString) {
+        int value = int.parse(colorString, radix: 16);
+        Color newColor = Color(value);
+        setState(() {
+          selectedColor = newColor;
+        });
+      });
+
+      _socket.on('stroke-width', (value) {
+        setState(() {
+          strokeWidth = value.toDouble();
+        });
+      });
+
+      _socket.on('clean-screen', (data) {
+        setState(() {
+          points.clear();
+        });
       });
     });
   }
@@ -72,6 +95,37 @@ class _PaintScreenState extends State<PaintScreen> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
+
+    void selectColor() {
+      showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: const Text('Choose Color'),
+                content: SingleChildScrollView(
+                  child: BlockPicker(
+                      pickerColor: selectedColor,
+                      onColorChanged: (color) {
+                        String colorString = color.toString();
+                        String valueString =
+                            colorString.split('(0x')[1].split(')')[0];
+                        Map map = {
+                          'color': valueString,
+                          'roomName': dataOfRoom
+                        };
+                        _socket.emit('color-change', map);
+                      }),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: Text('Close'),
+                  ),
+                ],
+              ));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -120,7 +174,38 @@ class _PaintScreenState extends State<PaintScreen> {
                     ),
                   ),
                 ),
-              )
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      selectColor();
+                    },
+                    icon: Icon(Icons.color_lens, color: selectedColor),
+                  ),
+                  Expanded(
+                    child: Slider(
+                        min: 1.0,
+                        max: 10.0,
+                        label: "Strokewidth $strokeWidth",
+                        activeColor: selectedColor,
+                        value: strokeWidth,
+                        onChanged: (double value) {
+                          Map map = {
+                            'value': value,
+                            'roomName': widget.data
+                          };
+                          _socket.emit('stroke-width', map);
+                        }),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      _socket.emit('clean-screen', dataOfRoom['name']);
+                    },
+                    icon: Icon(Icons.layers_clear, color: selectedColor),
+                  ),
+                ],
+              ),
             ],
           )
         ],
