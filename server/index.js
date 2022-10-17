@@ -84,7 +84,19 @@ io.on('connection', (socket) => {
     })
 
 
-    _socket.on('paint', ({details, roomName}) => {
+    socket.on('msg', async (data) => {
+        try {
+            io.to(data.roomName).emit('msg', {
+                username: data.username,
+                msg: data.msg,
+            })
+        } catch (error) {
+            console.log(error);
+        }
+    })
+
+
+    socket.on('paint', ({details, roomName}) => {
         io.to(roomName).emit('points', {details: details});
     })
 
