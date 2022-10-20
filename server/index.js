@@ -89,6 +89,7 @@ io.on('connection', (socket) => {
             io.to(data.roomName).emit('msg', {
                 username: data.username,
                 msg: data.msg,
+                guessedUserCtr: data.guessedUserCtr,
             })
         } catch (error) {
             console.log(error);
@@ -113,6 +114,30 @@ io.on('connection', (socket) => {
 
     socket.on('clean-screen', (roomName) => {
         io.to(roomName).emit('clean-room', '');
+    })
+
+    
+    socket.on('change-turn', async(name) => {
+        try {
+            let room = await Room.findOne({name});
+            let idx = room.turnIndex;
+            if(idx + 1 === room.players.length){
+                room.currentRound+=1;
+            }
+
+            if(room.currentRound <= room.maxRounds) {
+                const word = getWord();
+                room.word = word;
+                room.turnIndex = (idx+1) % room.players.length;
+                room.turn = room.players[room.turnIndex];
+                room = await room.save();
+                io.to(name).emit('change-turn', room);
+            } else {
+
+            }
+        } catch (error) {
+            console.log(error);
+        }
     })
 })
 

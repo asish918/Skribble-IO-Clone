@@ -27,6 +27,8 @@ class _PaintScreenState extends State<PaintScreen> {
   TextEditingController controller = TextEditingController();
   List<Map> messages = [];
 
+  int guessedUserCtr = 0;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -86,6 +88,27 @@ class _PaintScreenState extends State<PaintScreen> {
         }
       });
 
+      _socket.on('change-turn', (data) {
+        String oldWord = dataOfRoom['word'];
+        showDialog(
+            context: context,
+            builder: (context) {
+              Future.delayed(Duration(seconds: 3), () {
+                setState(() {
+                  dataOfRoom = data;
+                  renderTextBlank(data['word']);
+                  guessedUserCtr = 0;
+                  points.clear();
+                });
+                Navigator.of(context).pop();
+              });
+              return AlertDialog(
+                  title: Center(
+                child: Text('Word was $oldWord'),
+              ));
+            });
+      });
+
       _socket.on('color-change', (colorString) {
         int value = int.parse(colorString, radix: 16);
         Color newColor = Color(value);
@@ -103,7 +126,13 @@ class _PaintScreenState extends State<PaintScreen> {
       _socket.on('msg', (msgData) {
         setState(() {
           messages.add(msgData);
+          guessedUserCtr = msgData['guessedUserCtr'];
         });
+
+        if (guessedUserCtr == dataOfRoom['players'].length - 1) {
+          _socket.emit('change-turn', dataOfRoom['name']);
+        }
+
         _scrollController.animateTo(
             _scrollController.position.maxScrollExtent + 40,
             duration: Duration(milliseconds: 200),
@@ -272,6 +301,7 @@ class _PaintScreenState extends State<PaintScreen> {
                       'msg': value.trim(),
                       'word': dataOfRoom['word'],
                       'roomName': widget.data['name'],
+                      'guessedUserCtr': guessedUserCtr
                     };
                     _socket.emit('msg', map);
                     controller.clear();
