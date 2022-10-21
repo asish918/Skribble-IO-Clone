@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:skribble_clone/models/my_custom_painter.dart';
@@ -28,12 +30,30 @@ class _PaintScreenState extends State<PaintScreen> {
   List<Map> messages = [];
 
   int guessedUserCtr = 0;
+  int _start = 0;
+  late Timer _timer;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     connect();
+  }
+
+  void startTimer() {
+    const oneSec = const Duration(seconds: 1);
+    _timer = new Timer.periodic(oneSec, (Timer time) {
+      if (_start == 0) {
+        _socket.emit('change-turn', dataOfRoom['name']);
+        setState(() {
+          _timer.cancel();
+        });
+      } else {
+        setState(() {
+          _start--;
+        });
+      }
+    });
   }
 
   void renderTextBlank(String text) {
@@ -68,7 +88,9 @@ class _PaintScreenState extends State<PaintScreen> {
           renderTextBlank(roomData['word']);
           dataOfRoom = roomData;
         });
-        if (!roomData['isJoin'] != true) {}
+        if (!roomData['isJoin'] != true) {
+          startTimer();
+        }
       });
 
       _socket.on('points', (point) {
@@ -98,9 +120,12 @@ class _PaintScreenState extends State<PaintScreen> {
                   dataOfRoom = data;
                   renderTextBlank(data['word']);
                   guessedUserCtr = 0;
+                  _start = 60;
                   points.clear();
                 });
                 Navigator.of(context).pop();
+                _timer.cancel();
+                startTimer();
               });
               return AlertDialog(
                   title: Center(
@@ -259,10 +284,17 @@ class _PaintScreenState extends State<PaintScreen> {
                   ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: textBlankWidget,
-              ),
+              dataOfRoom['turn']['nickname'] != widget.data['nickname']
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: textBlankWidget,
+                    )
+                  : Center(
+                      child: Text(
+                        dataOfRoom['word'],
+                        style: TextStyle(fontSize: 30),
+                      ),
+                    ),
               Container(
                 height: MediaQuery.of(context).size.height * 0.3,
                 child: ListView.builder(
@@ -289,48 +321,64 @@ class _PaintScreenState extends State<PaintScreen> {
               )
             ],
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    Map map = {
-                      'username': widget.data['nickname'],
-                      'msg': value.trim(),
-                      'word': dataOfRoom['word'],
-                      'roomName': widget.data['name'],
-                      'guessedUserCtr': guessedUserCtr
-                    };
-                    _socket.emit('msg', map);
-                    controller.clear();
-                  }
-                },
-                controller: controller,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.transparent),
+          dataOfRoom['turn']['nickname'] != widget.data['nickname']
+              ? Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    child: TextField(
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          Map map = {
+                            'username': widget.data['nickname'],
+                            'msg': value.trim(),
+                            'word': dataOfRoom['word'],
+                            'roomName': widget.data['name'],
+                            'guessedUserCtr': guessedUserCtr,
+                            'totalTime': 60,
+                            'timeTaken': 60 - _start,
+                          };
+                          _socket.emit('msg', map);
+                          controller.clear();
+                        }
+                      },
+                      controller: controller,
+                      autocorrect: false,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.transparent),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.transparent),
+                        ),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        filled: true,
+                        fillColor: Color(0xffF5F5FA),
+                        hintText: 'Your Guess',
+                        hintStyle: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w400),
+                      ),
+                      textInputAction: TextInputAction.done,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  filled: true,
-                  fillColor: Color(0xffF5F5FA),
-                  hintText: 'Your Guess',
-                  hintStyle:
-                      TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
-                ),
-                textInputAction: TextInputAction.done,
-              ),
-            ),
-          )
+                )
+              : Container(),
         ],
+      ),
+      floatingActionButton: Container(
+        margin: EdgeInsets.only(bottom: 30),
+        child: FloatingActionButton(
+          onPressed: () {},
+          elevation: 7,
+          backgroundColor: Colors.white,
+          child: Text(
+            '$_start',
+            style: TextStyle(color: Colors.black, fontSize: 22),
+          ),
+        ),
       ),
     );
   }
