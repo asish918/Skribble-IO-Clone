@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:skribble_clone/models/my_custom_painter.dart';
 import 'package:skribble_clone/models/touch_points.dart';
+import 'package:skribble_clone/waiting_lobby_screen.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class PaintScreen extends StatefulWidget {
@@ -209,165 +210,189 @@ class _PaintScreenState extends State<PaintScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              Container(
-                width: width,
-                height: height * 0.55,
-                child: GestureDetector(
-                  onPanUpdate: (details) {
-                    _socket.emit('paint', {
-                      'details': {
-                        'dx': details.localPosition.dx,
-                        'dy': details.localPosition.dy
-                      },
-                      'roomName': widget.data['name'],
-                    });
-                  },
-                  onPanStart: (details) {
-                    _socket.emit('paint', {
-                      'details': {
-                        'dx': details.localPosition.dx,
-                        'dy': details.localPosition.dy
-                      },
-                      'roomName': widget.data['name'],
-                    });
-                  },
-                  onPanEnd: (details) {
-                    _socket.emit('paint',
-                        {'details': null, 'roomName': widget.data['name']});
-                  },
-                  child: SizedBox.expand(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.all(
-                        Radius.circular(20),
-                      ),
-                      child: RepaintBoundary(
-                        child: CustomPaint(
-                          size: Size.infinite,
-                          painter: MyCustomPainter(pointsList: points),
+      body: dataOfRoom != null
+          ? dataOfRoom['isJoin'] != true
+              ? Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: width,
+                          height: height * 0.55,
+                          child: GestureDetector(
+                            onPanUpdate: (details) {
+                              _socket.emit('paint', {
+                                'details': {
+                                  'dx': details.localPosition.dx,
+                                  'dy': details.localPosition.dy
+                                },
+                                'roomName': widget.data['name'],
+                              });
+                            },
+                            onPanStart: (details) {
+                              _socket.emit('paint', {
+                                'details': {
+                                  'dx': details.localPosition.dx,
+                                  'dy': details.localPosition.dy
+                                },
+                                'roomName': widget.data['name'],
+                              });
+                            },
+                            onPanEnd: (details) {
+                              _socket.emit('paint', {
+                                'details': null,
+                                'roomName': widget.data['name']
+                              });
+                            },
+                            child: SizedBox.expand(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(20),
+                                ),
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    size: Size.infinite,
+                                    painter:
+                                        MyCustomPainter(pointsList: points),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      selectColor();
-                    },
-                    icon: Icon(Icons.color_lens, color: selectedColor),
-                  ),
-                  Expanded(
-                    child: Slider(
-                        min: 1.0,
-                        max: 10.0,
-                        label: "Strokewidth $strokeWidth",
-                        activeColor: selectedColor,
-                        value: strokeWidth,
-                        onChanged: (double value) {
-                          Map map = {'value': value, 'roomName': widget.data};
-                          _socket.emit('stroke-width', map);
-                        }),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      _socket.emit('clean-screen', dataOfRoom['name']);
-                    },
-                    icon: Icon(Icons.layers_clear, color: selectedColor),
-                  ),
-                ],
-              ),
-              dataOfRoom['turn']['nickname'] != widget.data['nickname']
-                  ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: textBlankWidget,
-                    )
-                  : Center(
-                      child: Text(
-                        dataOfRoom['word'],
-                        style: TextStyle(fontSize: 30),
-                      ),
-                    ),
-              Container(
-                height: MediaQuery.of(context).size.height * 0.3,
-                child: ListView.builder(
-                  controller: _scrollController,
-                  shrinkWrap: true,
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    var msg = messages[index].values;
-                    return ListTile(
-                      title: Text(
-                        msg.elementAt(0),
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        msg.elementAt(1),
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    );
-                  },
-                ),
-              )
-            ],
-          ),
-          dataOfRoom['turn']['nickname'] != widget.data['nickname']
-              ? Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    margin: EdgeInsets.symmetric(horizontal: 20),
-                    child: TextField(
-                      onSubmitted: (value) {
-                        if (value.trim().isNotEmpty) {
-                          Map map = {
-                            'username': widget.data['nickname'],
-                            'msg': value.trim(),
-                            'word': dataOfRoom['word'],
-                            'roomName': widget.data['name'],
-                            'guessedUserCtr': guessedUserCtr,
-                            'totalTime': 60,
-                            'timeTaken': 60 - _start,
-                          };
-                          _socket.emit('msg', map);
-                          controller.clear();
-                        }
-                      },
-                      controller: controller,
-                      autocorrect: false,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.transparent),
+                        Row(
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                selectColor();
+                              },
+                              icon:
+                                  Icon(Icons.color_lens, color: selectedColor),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                  min: 1.0,
+                                  max: 10.0,
+                                  label: "Strokewidth $strokeWidth",
+                                  activeColor: selectedColor,
+                                  value: strokeWidth,
+                                  onChanged: (double value) {
+                                    Map map = {
+                                      'value': value,
+                                      'roomName': widget.data
+                                    };
+                                    _socket.emit('stroke-width', map);
+                                  }),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                _socket.emit(
+                                    'clean-screen', dataOfRoom['name']);
+                              },
+                              icon: Icon(Icons.layers_clear,
+                                  color: selectedColor),
+                            ),
+                          ],
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.transparent),
-                        ),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        filled: true,
-                        fillColor: Color(0xffF5F5FA),
-                        hintText: 'Your Guess',
-                        hintStyle: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w400),
-                      ),
-                      textInputAction: TextInputAction.done,
+                        dataOfRoom['turn']['nickname'] !=
+                                widget.data['nickname']
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: textBlankWidget,
+                              )
+                            : Center(
+                                child: Text(
+                                  dataOfRoom['word'],
+                                  style: TextStyle(fontSize: 30),
+                                ),
+                              ),
+                        Container(
+                          height: MediaQuery.of(context).size.height * 0.3,
+                          child: ListView.builder(
+                            controller: _scrollController,
+                            shrinkWrap: true,
+                            itemCount: messages.length,
+                            itemBuilder: (context, index) {
+                              var msg = messages[index].values;
+                              return ListTile(
+                                title: Text(
+                                  msg.elementAt(0),
+                                  style: TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  msg.elementAt(1),
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 16),
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      ],
                     ),
-                  ),
+                    dataOfRoom['turn']['nickname'] != widget.data['nickname']
+                        ? Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              margin: EdgeInsets.symmetric(horizontal: 20),
+                              child: TextField(
+                                onSubmitted: (value) {
+                                  if (value.trim().isNotEmpty) {
+                                    Map map = {
+                                      'username': widget.data['nickname'],
+                                      'msg': value.trim(),
+                                      'word': dataOfRoom['word'],
+                                      'roomName': widget.data['name'],
+                                      'guessedUserCtr': guessedUserCtr,
+                                      'totalTime': 60,
+                                      'timeTaken': 60 - _start,
+                                    };
+                                    _socket.emit('msg', map);
+                                    controller.clear();
+                                  }
+                                },
+                                controller: controller,
+                                autocorrect: false,
+                                decoration: InputDecoration(
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.transparent),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.transparent),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 14),
+                                  filled: true,
+                                  fillColor: Color(0xffF5F5FA),
+                                  hintText: 'Your Guess',
+                                  hintStyle: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w400),
+                                ),
+                                textInputAction: TextInputAction.done,
+                              ),
+                            ),
+                          )
+                        : Container(),
+                  ],
                 )
-              : Container(),
-        ],
-      ),
+              : WaitingLobbyScreen(
+                  lobbyName: dataOfRoom['name'],
+                  noOfPlayers: dataOfRoom['players'].length,
+                  occupancy: dataOfRoom['occupancy'],
+                )
+          : Center(
+              child: CircularProgressIndicator(),
+            ),
       floatingActionButton: Container(
         margin: EdgeInsets.only(bottom: 30),
         child: FloatingActionButton(
