@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:skribble_clone/models/my_custom_painter.dart';
 import 'package:skribble_clone/models/touch_points.dart';
+import 'package:skribble_clone/sidebar/player_drawer.dart';
 import 'package:skribble_clone/waiting_lobby_screen.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
@@ -29,10 +30,13 @@ class _PaintScreenState extends State<PaintScreen> {
   ScrollController _scrollController = new ScrollController();
   TextEditingController controller = TextEditingController();
   List<Map> messages = [];
+  late Timer _timer;
+  var scaffoldKey = GlobalKey<ScaffoldState>();
+  List<Map> scoreboard = [];
+  bool isTextInputReadOnly = false;
 
   int guessedUserCtr = 0;
   int _start = 0;
-  late Timer _timer;
 
   @override
   void initState() {
@@ -92,6 +96,15 @@ class _PaintScreenState extends State<PaintScreen> {
         if (!roomData['isJoin'] != true) {
           startTimer();
         }
+        scoreboard.clear();
+        for (int i = 0; i < roomData['players'].length; i++) {
+          setState(() {
+            scoreboard.add({
+              'username': roomData['players'][i]['nickname'],
+              'points': roomData['players'][i]['points'].toString(),
+            });
+          });
+        }
       });
 
       _socket.on('points', (point) {
@@ -123,6 +136,7 @@ class _PaintScreenState extends State<PaintScreen> {
                   guessedUserCtr = 0;
                   _start = 60;
                   points.clear();
+                  isTextInputReadOnly = false;
                 });
                 Navigator.of(context).pop();
                 _timer.cancel();
@@ -170,6 +184,25 @@ class _PaintScreenState extends State<PaintScreen> {
           points.clear();
         });
       });
+
+      _socket.on('updateScore', (roomData) {
+        scoreboard.clear();
+        for (int i = 0; i < roomData['players'].length; i++) {
+          setState(() {
+            scoreboard.add({
+              'username': roomData['players'][i]['nickname'],
+              'points': roomData['players'][i]['points'],
+            });
+          });
+        }
+      });
+
+      _socket.on('closeInput', (_) {
+        _socket.emit('updateScore', widget.data['name']);
+        setState(() {
+          isTextInputReadOnly = true;
+        });
+      });
     });
   }
 
@@ -209,6 +242,8 @@ class _PaintScreenState extends State<PaintScreen> {
     }
 
     return Scaffold(
+      key: scaffoldKey,
+      drawer: PlayerDrawer(userData: scoreboard),
       backgroundColor: Colors.white,
       body: dataOfRoom != null
           ? dataOfRoom['isJoin'] != true
@@ -341,6 +376,7 @@ class _PaintScreenState extends State<PaintScreen> {
                             child: Container(
                               margin: EdgeInsets.symmetric(horizontal: 20),
                               child: TextField(
+                                readOnly: isTextInputReadOnly,
                                 onSubmitted: (value) {
                                   if (value.trim().isNotEmpty) {
                                     Map map = {
@@ -383,6 +419,15 @@ class _PaintScreenState extends State<PaintScreen> {
                             ),
                           )
                         : Container(),
+                    SafeArea(
+                      child: IconButton(
+                        icon: Icon(
+                          Icons.menu,
+                          color: Colors.black,
+                        ),
+                        onPressed: () => scaffoldKey.currentState!.openDrawer(),
+                      ),
+                    )
                   ],
                 )
               : WaitingLobbyScreen(
