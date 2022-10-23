@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:skribble_clone/final_leaderboard.dart';
+import 'package:skribble_clone/home_screen.dart';
 import 'package:skribble_clone/models/my_custom_painter.dart';
 import 'package:skribble_clone/models/touch_points.dart';
 import 'package:skribble_clone/sidebar/player_drawer.dart';
@@ -47,6 +48,14 @@ class _PaintScreenState extends State<PaintScreen> {
     // TODO: implement initState
     super.initState();
     connect();
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    _socket.dispose();
+    _timer.cancel();
   }
 
   void startTimer() {
@@ -241,6 +250,12 @@ class _PaintScreenState extends State<PaintScreen> {
           });
         }
       });
+
+      _socket.on(
+          'notCorrectGame',
+          (data) => Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+              (route) => false));
     });
   }
 
