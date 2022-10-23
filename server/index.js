@@ -157,7 +157,7 @@ io.on('connection', (socket) => {
                 room = await room.save();
                 io.to(name).emit('change-turn', room);
             } else {
-
+                io.to(name).emit('show-leaderboard', room.players);
             }
         } catch (error) {
             console.log(error);
@@ -172,6 +172,26 @@ io.on('connection', (socket) => {
             console.log(error);
         }
     })
+
+    socket.on('disconnect', async() => {
+        try {
+            let room = await Room.findOne({"players.socketID": socket.id});
+            for(let i = 0; i<room.players.length; i++){
+                if(room.players[i].socketID === socket.id){
+                    room.players.splice(i, 1);
+                    break;
+                }
+            }
+            room = await room.save();
+            if(room.players.length === 1){
+                socket.broadcast.to(room.name).emit('show-leaderboard', room.players);
+            } else {
+                socket.broadcast.to(room.name).emit('user-disconnected', room);
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    });
 })
 
 server.listen(port, "0.0.0.0", () => {
